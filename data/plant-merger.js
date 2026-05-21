@@ -27,19 +27,37 @@ const PlantMerger = {
         plants.push(...PLANTS_CORE);
         console.log(`  ✓ ${PLANTS_CORE.length} local plants loaded`);
 
-        // 2. Fetch Perenual plants from JSON file
-        try {
-            this.reportProgress('Fetching 10672 Perenual plants...', 1, 4);
-            const resp = await fetch('data/plants-perenual.json');
-            const perenualData = await resp.json();
-            console.log(`  ✓ ${perenualData.length} Perenual plants fetched`);
-            const merged = this.mergeInto(plants, perenualData);
+        // 2. Add pre-fetched Perenual plants (from script tag or JSON file)
+        let perenualPlants = null;
+        
+        // 2a. Try the global JS variable first
+        if (typeof PLANTS_PERENUAL !== 'undefined' && PLANTS_PERENUAL.length > 0) {
+            perenualPlants = PLANTS_PERENUAL;
+            console.log(`  ✓ ${perenualPlants.length} Perenual plants from script tag`);
+        }
+        
+        // 2b. If not available, try fetching from JSON
+        if (!perenualPlants) {
+            try {
+                this.reportProgress('Fetching Perenual plants from JSON...', 1, 4);
+                const resp = await fetch('data/plants-perenual.json');
+                perenualPlants = await resp.json();
+                console.log(`  ✓ ${perenualPlants.length} Perenual plants from JSON`);
+            } catch (e) {
+                console.log('  ⚠️  Could not load Perenual plants:', e.message);
+            }
+        }
+        
+        if (perenualPlants && perenualPlants.length > 0) {
+            this.reportProgress(`Merging ${perenualPlants.length} Perenual plants...`, 1, 4);
+            const merged = this.mergeInto(plants, perenualPlants);
             plants.length = 0;
             plants.push(...merged.list);
             console.log(`  → ${merged.added} new, ${merged.skipped} deduplicated`);
-        } catch (e) {
-            console.log('  ⚠️  Could not fetch Perenual JSON — skipping:', e.message);
+        } else {
+            console.log('  ⚠️  No Perenual plants available');
         }
+
 
 
 
