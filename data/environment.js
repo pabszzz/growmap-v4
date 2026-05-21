@@ -18,7 +18,12 @@ const EnvironmentFetcher = {
     const fmt = d => d.toISOString().split('T')[0];
     const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${fmt(startDate)}&end_date=${fmt(endDate)}&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,relative_humidity_2m_mean,sunshine_duration&timezone=auto`;
 
-    const res = await fetch(url);
+    // Timeout: 15s — mobile networks can be flaky
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
     if (!res.ok) throw new Error(`Climate API error: ${res.status}`);
     const data = await res.json();
     if (data.error) throw new Error(data.reason || 'Climate API error');
@@ -27,6 +32,7 @@ const EnvironmentFetcher = {
     this.cache[key] = profile;
     return profile;
   },
+
 
   processClimateData(data) {
     const d = data.daily;
@@ -114,7 +120,11 @@ const EnvironmentFetcher = {
   async fetchSoilData(lat, lng) {
     try {
       const url = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lng}&lat=${lat}&property=phh2o&depth=0-5cm&value=mean`;
-      const res = await fetch(url);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+
       if (!res.ok) throw new Error('Soil API error');
       const data = await res.json();
       const phRaw = data?.properties?.layers?.[0]?.depths?.[0]?.values?.mean;
