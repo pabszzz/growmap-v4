@@ -27,18 +27,27 @@ const PlantMerger = {
         plants.push(...PLANTS_CORE);
         console.log(`  ✓ ${PLANTS_CORE.length} local plants loaded`);
 
-        // 2. Add pre-fetched Perenual plants (window.PLANTS_PERENUAL from 5 chunks)
-        if (typeof window.PLANTS_PERENUAL !== 'undefined' && window.PLANTS_PERENUAL.length > 0) {
-            const p = window.PLANTS_PERENUAL;
-            console.log(`  ✓ ${p.length} Perenual plants from window.PLANTS_PERENUAL`);
-            this.reportProgress(`Merging ${p.length} Perenual plants...`, 1, 4);
-            const merged = this.mergeInto(plants, p);
+        // 2. Fetch Perenual plants from 5 JSON chunks in parallel (Promise.all)
+        this.reportProgress('Fetching Perenual plants...', 1, 4);
+        try {
+            const urls = [
+                'data/plants-perenual-1.json',
+                'data/plants-perenual-2.json',
+                'data/plants-perenual-3.json',
+                'data/plants-perenual-4.json',
+                'data/plants-perenual-5.json',
+            ];
+            const results = await Promise.all(urls.map(url => fetch(url).then(r => r.json())));
+            const perenualPlants = results.flat();
+            console.log(`  ✓ ${perenualPlants.length} Perenual plants fetched from 5 JSON chunks`);
+            const merged = this.mergeInto(plants, perenualPlants);
             plants.length = 0;
             plants.push(...merged.list);
             console.log(`  → ${merged.added} new, ${merged.skipped} deduplicated`);
-        } else {
-            console.log('  ⚠️  window.PLANTS_PERENUAL not found — skipping Perenual');
+        } catch (e) {
+            console.log('  ⚠️  Could not fetch Perenual JSON:', e.message);
         }
+
 
 
 
