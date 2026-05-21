@@ -27,23 +27,32 @@ const PlantMerger = {
         plants.push(...PLANTS_CORE);
         console.log(`  ✓ ${PLANTS_CORE.length} local plants loaded`);
 
-        // 2. Add pre-fetched Perenual plants (if available)
-        const perenualSources = [];
-        if (typeof PLANTS_PERENUAL !== 'undefined' && PLANTS_PERENUAL.length > 0) {
-            perenualSources.push(...PLANTS_PERENUAL);
+        // 2. Add pre-fetched Perenual plants (split across chunks, ~3MB each)
+        const perenualChunks = [];
+        const chunkSources = [
+            { name: 'PLANTS_PERENUAL', exists: typeof PLANTS_PERENUAL !== 'undefined' },
+            { name: 'PLANTS_PERENUAL_2', exists: typeof PLANTS_PERENUAL_2 !== 'undefined' },
+            { name: 'PLANTS_PERENUAL_3', exists: typeof PLANTS_PERENUAL_3 !== 'undefined' },
+            { name: 'PLANTS_PERENUAL_4', exists: typeof PLANTS_PERENUAL_4 !== 'undefined' },
+            { name: 'PLANTS_PERENUAL_5', exists: typeof PLANTS_PERENUAL_5 !== 'undefined' },
+        ];
+        for (const src of chunkSources) {
+            if (src.exists) {
+                // Use indirect eval to get the const variable value
+                const arr = eval(src.name);
+                if (arr && arr.length > 0) perenualChunks.push(...arr);
+            }
         }
-        if (typeof PLANTS_PERENUAL_2 !== 'undefined' && PLANTS_PERENUAL_2.length > 0) {
-            perenualSources.push(...PLANTS_PERENUAL_2);
-        }
-        if (perenualSources.length > 0) {
-            this.reportProgress(`Merging ${perenualSources.length} Perenual plants...`, 1, 4);
-            const merged = this.mergeInto(plants, perenualSources);
+        if (perenualChunks.length > 0) {
+            this.reportProgress(`Merging ${perenualChunks.length} Perenual plants...`, 1, 4);
+            const merged = this.mergeInto(plants, perenualChunks);
             plants.length = 0;
             plants.push(...merged.list);
-            console.log(`  ✓ ${perenualSources.length} from Perenual → ${merged.added} new, ${merged.skipped} deduplicated`);
+            console.log(`  ✓ ${perenualChunks.length} from Perenual → ${merged.added} new, ${merged.skipped} deduplicated`);
         } else {
             console.log('  ⚠️  PLANTS_PERENUAL not found — skipping');
         }
+
 
 
         // 3. Recategorize Perenual plants by keyword (they came as tree/herb/shrub)
