@@ -27,23 +27,20 @@ const PlantMerger = {
         plants.push(...PLANTS_CORE);
         console.log(`  ✓ ${PLANTS_CORE.length} local plants loaded`);
 
-        // 2. Add pre-fetched Perenual plants (split across chunks, ~3MB each)
-        const perenualChunks = [];
-        // Check each const variable directly (const globals don't appear on window)
-        if (typeof PLANTS_PERENUAL !== 'undefined' && PLANTS_PERENUAL.length > 0) perenualChunks.push(...PLANTS_PERENUAL);
-        if (typeof PLANTS_PERENUAL_2 !== 'undefined' && PLANTS_PERENUAL_2.length > 0) perenualChunks.push(...PLANTS_PERENUAL_2);
-        if (typeof PLANTS_PERENUAL_3 !== 'undefined' && PLANTS_PERENUAL_3.length > 0) perenualChunks.push(...PLANTS_PERENUAL_3);
-        if (typeof PLANTS_PERENUAL_4 !== 'undefined' && PLANTS_PERENUAL_4.length > 0) perenualChunks.push(...PLANTS_PERENUAL_4);
-        if (typeof PLANTS_PERENUAL_5 !== 'undefined' && PLANTS_PERENUAL_5.length > 0) perenualChunks.push(...PLANTS_PERENUAL_5);
-        if (perenualChunks.length > 0) {
-            this.reportProgress(`Merging ${perenualChunks.length} Perenual plants...`, 1, 4);
-            const merged = this.mergeInto(plants, perenualChunks);
+        // 2. Fetch Perenual plants from JSON file
+        try {
+            this.reportProgress('Fetching 10672 Perenual plants...', 1, 4);
+            const resp = await fetch('data/plants-perenual.json');
+            const perenualData = await resp.json();
+            console.log(`  ✓ ${perenualData.length} Perenual plants fetched`);
+            const merged = this.mergeInto(plants, perenualData);
             plants.length = 0;
             plants.push(...merged.list);
-            console.log(`  ✓ ${perenualChunks.length} from Perenual → ${merged.added} new, ${merged.skipped} deduplicated`);
-        } else {
-            console.log('  ⚠️  PLANTS_PERENUAL not found — skipping');
+            console.log(`  → ${merged.added} new, ${merged.skipped} deduplicated`);
+        } catch (e) {
+            console.log('  ⚠️  Could not fetch Perenual JSON — skipping:', e.message);
         }
+
 
 
 
