@@ -35,13 +35,33 @@ const App = {
 
     // ==================== DATABASE ====================
     async buildDatabase() {
+        window._growmapChunkErrors = 0;
         PlantMerger.onProgressChange((progress) => {
             this.updateLoadingText(`🌱 ${progress.step}`);
         });
         await PlantMerger.buildMasterDatabase();
         this.databaseStats = PlantMerger.getStats();
         this.updateDatabaseStats();
+
+        // Warn user if some chunks failed
+        if (window._growmapChunkErrors > 0) {
+            const failed = window._growmapChunkErrors;
+            const total = this.databaseStats?.total || 0;
+            const footer = document.getElementById('db-stats');
+            if (footer) {
+                footer.innerHTML = `⚠️ ${total.toLocaleString()} plants loaded — ${failed} chunk(s) failed to fetch. <a href="javascript:App.rebuildDatabase()" style="color:var(--accent)">Retry</a>`;
+            }
+            console.warn(`⚠️ Database loaded with ${failed} chunk error(s). Total: ${total} plants.`);
+        }
+
         return PlantMerger.masterList;
+    },
+
+    async rebuildDatabase() {
+        window._growmapChunkErrors = 0;
+        this.showLoading('🔄 Reloading plant database...');
+        await this.buildDatabase();
+        this.hideLoading();
     },
 
     updateDatabaseStats() {
@@ -96,13 +116,26 @@ const App = {
         document.getElementById('location-name').textContent = name;
         document.getElementById('location-coords').textContent = `${lat.toFixed(4)}°, ${lng.toFixed(4)}°`;
         this.showLoading('Fetching climate data...');
+        // Guard: ensure hideLoading is always called, even on unexpected throws
+        let env = null;
         try {
             this.updateLoadingText('Analyzing 5 years of climate data...');
-            const env = await EnvironmentFetcher.getFullEnvironmentProfile(lat, lng);
+            env = await EnvironmentFetcher.getFullEnvironmentProfile(lat, lng);
+        } catch (climateErr) {
+            console.error('Climate fetch error:', climateErr);
+            const isTimeout = climateErr.name === 'AbortError' || climateErr.message?.includes('abort');
+            const msg = isTimeout
+                ? 'Climate data timed out. Scoring with estimated values...'
+                : `Climate API failed: ${climateErr.message}. Using estimates...`;
+            this.updateLoadingText(msg);
+            // Fallback: build a minimal climate profile from latitude
+            env = EnvironmentFetcher.estimateProfileFromLatLng(lat, lng);
+        }
+        try {
             this.currentEnv = env;
             this.updateClimateStats(env);
             this.updateLoadingText(`Scoring ${this.databaseStats?.total || 500}+ plants...`);
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise(r => setTimeout(r, 50));
             const allPlants = PlantMerger.masterList;
             this.currentResults = GrowabilityScorer.scoreAllPlants(allPlants, env);
             this.compareList = [];
@@ -110,9 +143,9 @@ const App = {
             this.renderPlants();
             this.hideLoading();
         } catch (err) {
-            console.error('Error:', err);
+            console.error('Scoring error:', err);
             this.hideLoading();
-            this.showError(err.message);
+            this.showError(`Could not score plants: ${err.message}`);
         }
     },
 

@@ -27,8 +27,10 @@ const PlantMerger = {
         plants.push(...PLANTS_CORE);
         console.log(`  ✓ ${PLANTS_CORE.length} local plants loaded`);
 
-        // 2. Fetch Perenual plants from 5 JSON chunks in parallel (Promise.all)
-        this.reportProgress('Fetching Perenual plants...', 1, 4);
+        // 2. Fetch Perenual plants from 5 JSON chunks
+        // Uses Promise.allSettled so a single failed chunk won't kill the rest.
+        // Falls back to sequential fetch for any chunk that failed in parallel.
+        this.reportProgress('Fetching Perenual plants (1/5)...', 1, 4);
         try {
             const urls = [
                 'data/plants-perenual-1.json',
@@ -37,15 +39,71 @@ const PlantMerger = {
                 'data/plants-perenual-4.json',
                 'data/plants-perenual-5.json',
             ];
-            const results = await Promise.all(urls.map(url => fetch(url).then(r => r.json())));
-            const perenualPlants = results.flat();
-            console.log(`  ✓ ${perenualPlants.length} Perenual plants fetched from 5 JSON chunks`);
+
+            // Helper: fetch with timeout
+            const fetchWithTimeout = (url, ms = 30000) => {
+                const ctrl = new AbortController();
+                const tid = setTimeout(() => ctrl.abort(), ms);
+                return fetch(url, { signal: ctrl.signal })
+                    .then(r => {
+                        clearTimeout(tid);
+                        if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+                        return r.json();
+                    })
+                    .catch(err => {
+                        clearTimeout(tid);
+                        throw err;
+                    });
+            };
+
+            // Step A: Try all in parallel first (fast path)
+            this.reportProgress('Fetching Perenual plants (parallel)...', 1, 4);
+            const parallelResults = await Promise.allSettled(urls.map(url => fetchWithTimeout(url, 30000)));
+
+            const chunks = [];
+            const failedUrls = [];
+            parallelResults.forEach((res, i) => {
+                if (res.status === 'fulfilled') {
+                    chunks.push(res.value);
+                    console.log(`  ✓ Chunk ${i + 1}: ${res.value.length} plants`);
+                } else {
+                    failedUrls.push({ url: urls[i], index: i });
+                    console.warn(`  ⚠️ Chunk ${i + 1} failed (parallel):`, res.reason?.message || res.reason);
+                }
+            });
+
+            // Step B: Retry failed chunks sequentially (mobile-friendly)
+            if (failedUrls.length > 0) {
+                console.log(`  ↩️  Retrying ${failedUrls.length} failed chunk(s) sequentially...`);
+                this.reportProgress(`Retrying ${failedUrls.length} failed chunk(s)...`, 1, 4);
+                for (const { url, index } of failedUrls) {
+                    try {
+                        const data = await fetchWithTimeout(url, 45000);
+                        chunks.push(data);
+                        console.log(`  ✓ Chunk ${index + 1} retry OK: ${data.length} plants`);
+                    } catch (retryErr) {
+                        console.error(`  ✗ Chunk ${index + 1} retry failed:`, retryErr.message);
+                        // surface error to UI via a global flag
+                        window._growmapChunkErrors = (window._growmapChunkErrors || 0) + 1;
+                    }
+                }
+            }
+
+            const perenualPlants = chunks.flat();
+            console.log(`  ✓ ${perenualPlants.length} Perenual plants fetched total`);
+
+            if (perenualPlants.length === 0) {
+                console.error('  ✗ All Perenual chunks failed — only local plants available');
+                window._growmapChunkErrors = 5;
+            }
+
             const merged = this.mergeInto(plants, perenualPlants);
             plants.length = 0;
             plants.push(...merged.list);
             console.log(`  → ${merged.added} new, ${merged.skipped} deduplicated`);
         } catch (e) {
-            console.log('  ⚠️  Could not fetch Perenual JSON:', e.message);
+            console.error('  ✗ Unexpected error fetching Perenual JSON:', e.message);
+            window._growmapChunkErrors = 5;
         }
 
 
