@@ -176,23 +176,25 @@ const PlantMerger = {
     },
 
     dedupKey(plant) {
-        let sci = (plant.scientificName || '').toLowerCase().trim().replace(/\s+/g, ' ');
-        // Strip cultivar/variety/subspecies names so "Olea europaea" and "Olea europaea 'Arbequina'" match
-        sci = sci.replace(/[''][^']*['']/g, '');          // remove 'CultivarName'
-        sci = sci.replace(/\b(var\.|subsp\.|f\.|ssp\.)\s*\S+/g, ''); // remove var. x, subsp. y, etc.
-        sci = sci.replace(/cv\.\s*\S+/g, '');              // remove cv. Cultivar
-        // Normalize special characters
-        sci = sci.replace(/[×xΧχ]/g, 'x')
-                 .replace(/['’ʻʼˈ]/g, "'")
-                 .replace(/[–—−]/g, '-')
-                 .replace(/[àáâãäå]/g, 'a')
-                 .replace(/[èéêë]/g, 'e')
-                 .replace(/[ìíîï]/g, 'i')
-                 .replace(/[òóôõö]/g, 'o')
-                 .replace(/[ùúûü]/g, 'u')
-                 .replace(/[ç]/g, 'c')
-                 .replace(/\s+/g, ' ')
-                 .trim();
+        // IMPORTANT: Do NOT strip cultivar names ('XYZ') — they are DIFFERENT plants.
+        // Acer palmatum 'Bloodgood' ≠ Acer palmatum 'Sango Kaku'.
+        // Only normalize unicode/whitespace so truly identical names collapse.
+        let sci = (plant.scientificName || '').toLowerCase().trim();
+
+        // Normalize special characters only — do NOT remove cultivar suffixes
+        sci = sci
+            .replace(/[×Χχ]/g, 'x')           // multiplication sign → x
+            .replace(/[''ʻʼˈ]/g, "'")          // fancy quotes → straight apostrophe
+            .replace(/[–—−]/g, '-')            // em/en dash → hyphen
+            .replace(/[àáâãäå]/g, 'a')
+            .replace(/[èéêë]/g, 'e')
+            .replace(/[ìíîï]/g, 'i')
+            .replace(/[òóôõö]/g, 'o')
+            .replace(/[ùúûü]/g, 'u')
+            .replace(/[ç]/g, 'c')
+            .replace(/\s+/g, ' ')
+            .trim();
+
         if (sci && sci !== '') return `sci:${sci}`;
         return `id:${plant.id}`;
     },
