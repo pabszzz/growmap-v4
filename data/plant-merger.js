@@ -28,15 +28,23 @@ const PlantMerger = {
         console.log(`  ✓ ${PLANTS_CORE.length} local plants loaded`);
 
         // 2. Add pre-fetched Perenual plants (if available)
+        const perenualSources = [];
         if (typeof PLANTS_PERENUAL !== 'undefined' && PLANTS_PERENUAL.length > 0) {
-            this.reportProgress(`Merging ${PLANTS_PERENUAL.length} Perenual plants...`, 1, 4);
-            const merged = this.mergeInto(plants, PLANTS_PERENUAL);
+            perenualSources.push(...PLANTS_PERENUAL);
+        }
+        if (typeof PLANTS_PERENUAL_2 !== 'undefined' && PLANTS_PERENUAL_2.length > 0) {
+            perenualSources.push(...PLANTS_PERENUAL_2);
+        }
+        if (perenualSources.length > 0) {
+            this.reportProgress(`Merging ${perenualSources.length} Perenual plants...`, 1, 4);
+            const merged = this.mergeInto(plants, perenualSources);
             plants.length = 0;
             plants.push(...merged.list);
-            console.log(`  ✓ ${PLANTS_PERENUAL.length} from Perenual → ${merged.added} new, ${merged.skipped} deduplicated`);
+            console.log(`  ✓ ${perenualSources.length} from Perenual → ${merged.added} new, ${merged.skipped} deduplicated`);
         } else {
             console.log('  ⚠️  PLANTS_PERENUAL not found — skipping');
         }
+
 
         // 3. Recategorize Perenual plants by keyword (they came as tree/herb/shrub)
         this.reportProgress('Recategorizing plants...', 2, 4);
