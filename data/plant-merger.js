@@ -29,20 +29,12 @@ const PlantMerger = {
 
         // 2. Add pre-fetched Perenual plants (split across chunks, ~3MB each)
         const perenualChunks = [];
-        const chunkSources = [
-            { name: 'PLANTS_PERENUAL', exists: typeof PLANTS_PERENUAL !== 'undefined' },
-            { name: 'PLANTS_PERENUAL_2', exists: typeof PLANTS_PERENUAL_2 !== 'undefined' },
-            { name: 'PLANTS_PERENUAL_3', exists: typeof PLANTS_PERENUAL_3 !== 'undefined' },
-            { name: 'PLANTS_PERENUAL_4', exists: typeof PLANTS_PERENUAL_4 !== 'undefined' },
-            { name: 'PLANTS_PERENUAL_5', exists: typeof PLANTS_PERENUAL_5 !== 'undefined' },
-        ];
-        for (const src of chunkSources) {
-            if (src.exists) {
-                // Use indirect eval to get the const variable value
-                const arr = eval(src.name);
-                if (arr && arr.length > 0) perenualChunks.push(...arr);
-            }
-        }
+        // Check each const variable directly (const globals don't appear on window)
+        if (typeof PLANTS_PERENUAL !== 'undefined' && PLANTS_PERENUAL.length > 0) perenualChunks.push(...PLANTS_PERENUAL);
+        if (typeof PLANTS_PERENUAL_2 !== 'undefined' && PLANTS_PERENUAL_2.length > 0) perenualChunks.push(...PLANTS_PERENUAL_2);
+        if (typeof PLANTS_PERENUAL_3 !== 'undefined' && PLANTS_PERENUAL_3.length > 0) perenualChunks.push(...PLANTS_PERENUAL_3);
+        if (typeof PLANTS_PERENUAL_4 !== 'undefined' && PLANTS_PERENUAL_4.length > 0) perenualChunks.push(...PLANTS_PERENUAL_4);
+        if (typeof PLANTS_PERENUAL_5 !== 'undefined' && PLANTS_PERENUAL_5.length > 0) perenualChunks.push(...PLANTS_PERENUAL_5);
         if (perenualChunks.length > 0) {
             this.reportProgress(`Merging ${perenualChunks.length} Perenual plants...`, 1, 4);
             const merged = this.mergeInto(plants, perenualChunks);
@@ -52,6 +44,7 @@ const PlantMerger = {
         } else {
             console.log('  ⚠️  PLANTS_PERENUAL not found — skipping');
         }
+
 
 
 
