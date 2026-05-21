@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GrowMap</string>
+    <string name="title_activity_main">GrowMap</string>
+    <string name="package_name">com.growmap.app</string>
+    <string name="custom_url_scheme">com.growmap.app</string>
+</resources>
