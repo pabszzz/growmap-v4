@@ -232,30 +232,15 @@
         </div>
     </div>
 
-    <!-- PWA: Register Service Worker -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(() => console.log('✅ SW registered'))
-                    .catch(err => console.warn('⚠️ SW failed:', err));
-            });
-        }
-    </script>
-
-    <!-- Scripts (v3.2 — pre-fetched) -->
-    <script src="data/plants-core.js?v=3.2"></script>
-    <script src="data/environment.js?v=3.2"></script>
-    <script src="scoring.js?v=3.2"></script>
-    <script src="config.js?v=3.2"></script>
-    <script src="api/perenual.js?v=3.2"></script>
-
-
-    <script src="api/trefle.js?v=3.2"></script>
-
-
-    <script src="data/plant-merger.js?v=3.2"></script>
-    <script src="app.js?v=3.2"></script>
+    <!-- Scripts (v4.1 — cultivar dedup fix, 10K+ plants) -->
+    <script src="data/plants-core.js?v=4.1"></script>
+    <script src="data/environment.js?v=4.1"></script>
+    <script src="scoring.js?v=4.1"></script>
+    <script src="config.js?v=4.1"></script>
+    <script src="api/perenual.js?v=4.1"></script>
+    <script src="api/trefle.js?v=4.1"></script>
+    <script src="data/plant-merger.js?v=4.1"></script>
+    <script src="app.js?v=4.1"></script>
 
 </body>
 
