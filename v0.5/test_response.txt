@@ -1,1 +1,0 @@
-{"X-RateLimit-Limit":100,"X-RateLimit-Remaining":0,"Retry-After":32237,"X-RateLimit-Reset":1778617921,"X-RateLimit-Exceeded":"You have surpassed your API rate limit."}
