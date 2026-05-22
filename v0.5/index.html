@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport: no user-scale but allow text to remain readable -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>GrowMap v0.5 — iPhone Plant Explorer</title>
+    <meta name="description" content="Discover which 10,000+ plants can grow anywhere on Earth. Tap the map, get real climate data and growability scores.">
+
+    <!-- iOS Safari PWA meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GrowMap">
+    <link rel="apple-touch-icon" href="../assets/icon-192.png">
+    <meta name="theme-color" content="#13151a">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- iOS Safari real viewport height fix (must be inline, before body renders) -->
+    <script>
+        // Fix iOS Safari's broken 100vh by setting a CSS variable to actual inner height
+        function setRealVh() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--real-vh', `${vh}px`);
+        }
+        setRealVh();
+        window.addEventListener('resize', setRealVh);
+        window.addEventListener('orientationchange', () => setTimeout(setRealVh, 300));
+    </script>
+</head>
+
+<body>
+    <!-- Header -->
+    <header id="app-header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-icon">🌱</span>
+                <span class="logo-text">GrowMap</span>
+                <span class="version-badge">v0.5</span>
+            </div>
+        </div>
+
+        <!-- Search bar — hidden on mobile, shown on desktop -->
+        <div class="header-center">
+            <div class="location-search-wrapper" id="location-search-wrapper">
+                <div class="location-search-box">
+                    <span class="loc-search-icon">📍</span>
+                    <input type="text" id="location-search" placeholder="Search any place..."
+                        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                    <span class="loc-search-clear hidden" id="loc-search-clear">✕</span>
+                </div>
+                <div class="loc-suggestions hidden" id="loc-suggestions"></div>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <!-- Mobile search button (shown only on mobile) -->
+            <button id="btn-mobile-search" class="header-btn" title="Search location" style="display:none">
+                <span>🔍</span>
+            </button>
+            <button id="btn-favorites" class="header-btn" title="Favorites">
+                <span>❤️</span>
+            </button>
+            <button id="btn-compare" class="header-btn" title="Compare plants" style="display:none">
+                <span>⚖️</span>
+            </button>
+            <div class="theme-toggle" id="theme-toggle" title="Toggle theme">
+                <span>☀️</span>
+                <div class="theme-toggle-track">
+                    <div class="theme-toggle-thumb"></div>
+                </div>
+                <span>🌙</span>
+            </div>
+            <button id="btn-api" class="header-btn btn-api" title="API Configuration">
+                <span>🔌</span>
+            </button>
+            <button id="btn-about" class="header-btn" title="About">
+                <span>ℹ️</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="app-main">
+        <!-- Map -->
+        <div id="map-container">
+            <div id="map"></div>
+            <div id="map-overlay" class="map-overlay">
+                <div class="overlay-content">
+                    <span class="overlay-icon">📍</span>
+                    <p>Tap anywhere on the map<br>to discover what can grow there</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <aside id="results-panel" class="panel-hidden">
+
+            <!-- Climate Card -->
+            <div id="climate-card" class="climate-card">
+                <div class="climate-header">
+                    <span class="climate-pin">📍</span>
+                    <div>
+                        <h2 id="location-name">Select a location</h2>
+                        <p id="location-coords" class="climate-coords"></p>
+                    </div>
+                </div>
+                <div id="climate-stats" class="climate-stats">
+                    <div class="stat">
+                        <span class="stat-icon">🌡️</span>
+                        <span class="stat-label">Avg Temp</span>
+                        <span id="stat-temp" class="stat-value">—</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">🌧️</span>
+                        <span class="stat-label">Rainfall</span>
+                        <span id="stat-rain" class="stat-value">—</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">☀️</span>
+                        <span class="stat-label">Sun</span>
+                        <span id="stat-sun" class="stat-value">—</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">💧</span>
+                        <span class="stat-label">Humidity</span>
+                        <span id="stat-humidity" class="stat-value">—</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">🧪</span>
+                        <span class="stat-label">Soil pH</span>
+                        <span id="stat-ph" class="stat-value">—</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">❄️</span>
+                        <span class="stat-label">Zone</span>
+                        <span id="stat-zone" class="stat-value">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search & Filter -->
+            <div class="search-filter">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="search" id="plant-search" placeholder="Search plants..."
+                        autocomplete="off" autocorrect="off" spellcheck="false">
+                </div>
+                <div id="category-filters" class="category-filters"></div>
+                <div class="sort-row">
+                    <label>Sort:</label>
+                    <select id="sort-select">
+                        <option value="score-desc">Score ↓</option>
+                        <option value="score-asc">Score ↑</option>
+                        <option value="name-asc">Name A-Z</option>
+                        <option value="name-desc">Name Z-A</option>
+                    </select>
+                    <span id="results-count" class="results-count"></span>
+                </div>
+            </div>
+
+            <!-- *** SCROLLABLE PLANT LIST ***
+                 iOS Safari fix: parent has overflow:hidden + fixed height,
+                 this div has flex:1 + min-height:0 + overflow-y:scroll + -webkit-overflow-scrolling:touch -->
+            <div id="plants-list" class="plants-list">
+                <div class="empty-state">
+                    <span>🌍</span>
+                    <p>Tap on the map to see plant growability scores</p>
+                </div>
+            </div>
+
+            <!-- DB Footer -->
+            <div id="db-footer" class="db-footer">
+                <span id="db-stats" class="db-stats">Loading database...</span>
+            </div>
+
+        </aside>
+    </main>
+
+    <!-- Mobile location search overlay -->
+    <div id="mobile-search-overlay" style="display:none;position:fixed;inset:0;z-index:5000;background:var(--bg-secondary);padding:16px;padding-top:max(16px,env(safe-area-inset-top))">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+            <div class="location-search-box" style="flex:1">
+                <span class="loc-search-icon">📍</span>
+                <input type="text" id="location-search-mobile" placeholder="Search any place..."
+                    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                    style="font-size:16px">
+            </div>
+            <button id="mobile-search-cancel" style="background:none;border:none;color:var(--accent);font-size:15px;font-weight:600;cursor:pointer;padding:8px;min-height:44px">Cancel</button>
+        </div>
+        <div id="loc-suggestions-mobile" class="loc-suggestions" style="position:static;border-radius:var(--radius-sm);border:1px solid var(--border);max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p id="loading-text">Building plant database...</p>
+        </div>
+    </div>
+
+    <!-- Plant Detail Modal -->
+    <div id="plant-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <button id="modal-close" class="modal-close">✕</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- API Config Modal -->
+    <div id="api-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content modal-api">
+            <button class="modal-close api-close">✕</button>
+            <div id="api-modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Compare Modal -->
+    <div id="compare-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <button class="modal-close">✕</button>
+            <h3 style="font-family:var(--font-heading);font-size:18px;margin-bottom:14px">⚖️ Plant Comparison</h3>
+            <div id="compare-modal-body"></div>
+        </div>
+    </div>
+
+    <!-- About Modal -->
+    <div id="about-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content modal-about">
+            <button class="modal-close about-close">✕</button>
+            <h2>🌱 GrowMap v0.5</h2>
+            <p>Tap anywhere on the map to discover which of 10,000+ plants can thrive at that location, using real climate and soil data.</p>
+            <h3>What's new in v0.5</h3>
+            <ul>
+                <li>📱 <strong>iPhone/Safari scroll fixed</strong> — plants list now scrolls smoothly</li>
+                <li>🌿 <strong>10,000+ plants</strong> — cultivar dedup bug fixed</li>
+                <li>🌡️ <strong>Climate fallback</strong> — works even when API is slow</li>
+                <li>⬇️ <strong>Bottom sheet UI</strong> — native mobile feel</li>
+            </ul>
+            <h3>Data Sources</h3>
+            <ul>
+                <li>📍 Location via <a href="https://nominatim.org" target="_blank">Nominatim</a></li>
+                <li>🌡️ Climate via <a href="https://open-meteo.com" target="_blank">Open-Meteo</a></li>
+                <li>🧪 Soil pH via <a href="https://isric.org" target="_blank">ISRIC SoilGrids</a></li>
+                <li>🌿 Plants via <a href="https://perenual.com" target="_blank">Perenual</a></li>
+            </ul>
+            <h3>Scores</h3>
+            <div class="about-scores">
+                <span>🟢 80-100 — Excellent</span>
+                <span>🟡 60-79 — Good</span>
+                <span>🟠 40-59 — Possible</span>
+                <span>🔴 20-39 — Difficult</span>
+                <span>⚫ 0-19 — Not Recommended</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile search button wiring -->
+    <script>
+        // Show mobile search button on small screens
+        (function() {
+            function checkMobile() {
+                const isMobile = window.innerWidth <= 768;
+                document.getElementById('btn-mobile-search').style.display = isMobile ? 'flex' : 'none';
+            }
+            checkMobile();
+            window.addEventListener('resize', checkMobile);
+
+            // Mobile search overlay
+            document.getElementById('btn-mobile-search').addEventListener('click', function() {
+                const overlay = document.getElementById('mobile-search-overlay');
+                overlay.style.display = 'block';
+                setTimeout(() => document.getElementById('location-search-mobile').focus(), 100);
+            });
+            document.getElementById('mobile-search-cancel').addEventListener('click', function() {
+                document.getElementById('mobile-search-overlay').style.display = 'none';
+            });
+
+            // Sync mobile search input to the main location-search input
+            const mobileInput = document.getElementById('location-search-mobile');
+            const desktopInput = document.getElementById('location-search');
+            if (mobileInput && desktopInput) {
+                mobileInput.addEventListener('input', function() {
+                    desktopInput.value = this.value;
+                    desktopInput.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            }
+
+            // Mirror suggestions to mobile panel
+            const mainSuggest = document.getElementById('loc-suggestions');
+            const mobileSuggest = document.getElementById('loc-suggestions-mobile');
+            if (mainSuggest && mobileSuggest) {
+                const observer = new MutationObserver(() => {
+                    mobileSuggest.innerHTML = mainSuggest.innerHTML;
+                    mobileSuggest.className = mainSuggest.className.replace('hidden','');
+                    // Re-wire click events
+                    mobileSuggest.querySelectorAll('.loc-suggestion-item').forEach((el, i) => {
+                        const orig = mainSuggest.querySelectorAll('.loc-suggestion-item')[i];
+                        if (orig) el.addEventListener('click', () => {
+                            orig.click();
+                            document.getElementById('mobile-search-overlay').style.display = 'none';
+                        });
+                    });
+                });
+                observer.observe(mainSuggest, { childList: true, subtree: true, attributes: true });
+            }
+        })();
+    </script>
+
+    <!-- Scripts (v0.5 — iOS Safari scroll fix, 10K+ plants) -->
+    <script src="../data/plants-core.js?v=5.0"></script>
+    <script src="../data/environment.js?v=5.0"></script>
+    <script src="../scoring.js?v=5.0"></script>
+    <script src="../config.js?v=5.0"></script>
+    <script src="../api/perenual.js?v=5.0"></script>
+    <script src="../api/trefle.js?v=5.0"></script>
+    <script src="data/plant-merger.js?v=5.0"></script>
+    <script src="app.js?v=5.0"></script>
+
+</body>
+
+</html>

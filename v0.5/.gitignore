@@ -1,0 +1,12 @@
+node_modules/
+android/
+*.py
+test_*.txt
+package*.json
+capacitor.config.json
+check_pages.js
+fetch*.py
+gen_icons.py
+recategorize.py
+count_plants.py
+fetch.py
